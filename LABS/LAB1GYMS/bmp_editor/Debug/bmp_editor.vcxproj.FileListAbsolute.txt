@@ -1,4 +1,0 @@
-D:\GYMS\LAB1\bmp_editor\Debug\bmp_editor.exe
-D:\GYMS\LAB1 — копия\bmp_editor\Debug\bmp_editor.exe
-C:\Users\Вадим\Desktop\LAB1GYMS\bmp_editor\Debug\bmp_editor.exe
-D:\GYMS\LAB2\LAB1GYMS\bmp_editor\Debug\bmp_editor.exe

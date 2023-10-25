@@ -1,7 +1,0 @@
-﻿cl : командная строка  warning D9035: использование параметра "Gm" нежелательно, он будет удален в следующих выпусках
-  bmp_editor.cpp
-D:\GYMS\LAB2\LAB1GYMS\bmp_editor\bmp_editor.cpp(325,2): warning C4996: 'strncpy': This function or variable may be unsafe. Consider using strncpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
-D:\GYMS\LAB2\LAB1GYMS\bmp_editor\bmp_editor.cpp(421,81): warning C4244: =: преобразование "double" в "int", возможна потеря данных
-D:\GYMS\LAB2\LAB1GYMS\bmp_editor\bmp_editor.cpp(440,37): warning C4244: =: преобразование "double" в "int", возможна потеря данных
-bmp_editor.obj : warning LNK4075: не учитывается "/EDITANDCONTINUE" из-за спецификации "/SAFESEH"
-  bmp_editor.vcxproj -> D:\GYMS\LAB2\LAB1GYMS\bmp_editor\Debug\bmp_editor.exe
