@@ -2,14 +2,16 @@
 //
 
 #include "stdafx.h"
-
 #include <stdio.h>
 #include <windows.h>
 #include <time.h>
 #include <string>
 #include <iostream>
 #include <fstream>
-
+#include <conio.h>
+#include <vector>
+#include <algorithm>
+#include <stdlib.h>
 
 using namespace std;
 
@@ -78,6 +80,8 @@ int img_type = 0;
 Color* src_image = 0; // Указатель на исходное изображение
 Color* dst_image = 0; // Указатель на результативное изображение
 Color* bw_image = 0;
+Color* fragment = 0;
+Color* enlarged_image = 0;
 // Размеры изображения (ширина и высота)
 int width = 0;
 int height = 0;
@@ -269,6 +273,7 @@ void ShowImage(string path)
 		ShowTTVHeaders(TtvHead);
 	}
 }
+
 
 // Функция для считывания пути к изображению от пользователя
 void ReadPath(string& str)
@@ -481,9 +486,286 @@ int PromptChoice() {
 	cin >> tmp;
 	return tmp;
 }
+void Negative() {
+	for (int i = 0; i < height * width; ++i) {
+		enlarged_image[i].red = 255 - enlarged_image[i].red;
+		enlarged_image[i].green = 255 - enlarged_image[i].green;
+		enlarged_image[i].blue = 255 - enlarged_image[i].blue;
+	}
+}
+void FillWithBorder(const int& x_pos, const int& y_pos, const int& fr_height, const int& fr_width, const bool& negative) {
+	int frx = 0, fry = 0;
+
+	for (int i = 0; i < height * width; ++i) {
+		enlarged_image[i].red = 0;
+		enlarged_image[i].green = 0;
+		enlarged_image[i].blue = 0;
+	}
+
+	for (int y = 0; y < height; ++y) {
+		for (int x = 0; x < width; ++x) {
+
+			if (x < width && y < height) {
+				enlarged_image[y * width + x].red = fragment[fry * fr_width + frx].red;
+				enlarged_image[y * width + x].green = fragment[fry * fr_width + frx].green;
+				enlarged_image[y * width + x].blue = fragment[fry * fr_width + frx].blue;
+			}
+
+			frx++;
+			if (frx >= fr_width) {
+				frx = 0;
+			}
+		}
+
+		fry++;
+		if (fry >= fr_height) {
+			fry = 0;
+		}
+	}
+	if (negative) {
+		Negative();
+	}
+
+	fry = 0; frx = 0;
+	for (int y = fr_height; y < height - fr_height; ++y) {
+		for (int x = fr_width; x < width - fr_width; ++x) {
+			enlarged_image[y * width + x].red = src_image[frx * (width - 2 * fr_width) + fry].red;
+			enlarged_image[y * width + x].green = src_image[frx * (width - 2 * fr_width) + fry].green;
+			enlarged_image[y * width + x].blue = src_image[frx * (width - 2 * fr_width) + fry].blue;
+
+			if (fry < (width - 2 * fr_width) - 1) {
+				fry++;
+			}
+			else {
+				fry = 0;
+				frx++;
+			}
+		}
+	}
+}
+bool SaveEnlargedImage(string path)
+{
+	ofstream img_file;
+	char buf[3];
+
+	//Открыть файл на запись
+	img_file.open(path.c_str(), ios::out | ios::binary);
+	if (!img_file)
+	{
+		return false;
+	}
+
+	img_file.write((char*)&FileHead, sizeof(FileHead));
+	img_file.write((char*)&InfoHead, sizeof(InfoHead));
+
+	//Скопировать из исходного в результирующее изображение
+	dst_image = new Color[width * height];
+	memcpy(dst_image, enlarged_image, width * height * sizeof(Color));
+
+
+	//Записать файл
+	int i, j;
+	for (i = 0; i < height; i++)
+	{
+		for (j = 0; j < width; j++)
+		{
+			img_file.write((char*)&dst_image[i * width + j], pixel_size);
+		}
+		img_file.write((char*)buf, j % 4);
+	}
+	img_file.close();
+
+	return true;
+}
+
+bool OpenEnlargedImage(string path)
+{
+	ifstream img_file;
+	Color temp;
+	char buf[3];
+
+	//Открыть файл на чтение
+	img_file.open(path.c_str(), ios::in | ios::binary);
+	if (!img_file)
+	{
+		cout << "File isn`t open!" << endl;
+		return false;
+	}
+
+	//Считать заголовки BMP
+
+
+	img_file.read((char*)&FileHead, sizeof(FileHead));
+	img_file.read((char*)&InfoHead, sizeof(InfoHead));
+
+	img_type = 1;
+	ShowBMPHeaders(FileHead, InfoHead);
+	//Присвоить длину и ширину изображения
+	width = InfoHead.biWidth;
+	height = InfoHead.biHeight;
+
+
+	//Выделить место под изображение
+	enlarged_image = new Color[width * height];
+	//bef_aft = new Color[2 * width * height];
+
+	int i, j;
+	for (i = 0; i < height; i++)
+	{
+		for (j = 0; j < width; j++)
+		{
+			img_file.read((char*)&temp, pixel_size);
+			enlarged_image[i * width + j] = temp;
+		}
+		//Дочитать биты используемые для выравнивания до двойного слова
+		img_file.read((char*)buf, j % 4);
+	}
+	img_file.close();
+
+	return true;
+}
+void imageMagnification(const string& fileName, const double& width_new, const double& height_new)
+{
+	int newWidth = static_cast<int>(width_new);
+	int newHeight = static_cast<int>(height_new);
+	string path = "D:/University/GYMS/LABS/LAB2/SimpleBitmap/" + fileName + "_larger.bmp";
+	vector<Color> enlargedImg(newWidth * newHeight);
+
+	for (int y = 0; y < newHeight; ++y)
+	{
+		for (int x = 0; x < newWidth; ++x)
+		{
+			int srcX = static_cast<int>(x / (width_new / width));
+			int srcY = static_cast<int>(y / (height_new / height));
+
+			srcX = min(srcX, width - 1);
+			srcY = min(srcY, height - 1);
+
+			Color interpolatedColor = src_image[srcY * width + srcX];
+			enlargedImg[y * newWidth + x] = interpolatedColor;
+		}
+	}
+
+	int i = 0, j = 0;
+	for (; i < newHeight; ++i) {
+		for (; j < newWidth; ++j) {
+			enlargedImg[i * newWidth + j].red = 124;
+			enlargedImg[i * newWidth + j].green = 31;
+			enlargedImg[i * newWidth + j].blue = 12;
+		}
+	}
+
+	ofstream img_file;
+	char buf[3];
+
+	img_file.open(path.c_str(), ios::out | ios::binary);
+	if (!img_file)
+	{
+		return;
+	}
+
+	FileHead.bfSize = sizeof(FileHead) + sizeof(InfoHead) + pixel_size * enlargedImg.size();
+
+	InfoHead.biWidth = newWidth;
+	InfoHead.biHeight = newHeight;
+
+	img_file.write((char*)&FileHead, sizeof(FileHead));
+	img_file.write((char*)&InfoHead, sizeof(InfoHead));
+
+	i = 0; j = 0;
+	//Записать файл
+	for (; i < newHeight; ++i)
+	{
+		for (; j < newWidth; ++j)
+		{
+			img_file.write((char*)&enlargedImg[i * newWidth + j], pixel_size);
+		}
+		img_file.write((char*)buf, j % 4);
+	}
+	img_file.close();
+}
+void GetFragment(const int& x_pos, const int& y_pos, const int& fr_height, const int& fr_width) {
+	//fragment = new Color[fr_width * fr_height];
+	int frx = 0, fry = 0;
+
+	for (int x = x_pos; x < x_pos + fr_width; ++x) {
+		for (int y = y_pos; y < y_pos + fr_height; ++y) {
+			fragment[fry * fr_width + frx].red = src_image[y * width + x].red;
+			fragment[fry * fr_width + frx].green = src_image[y * width + x].green;
+			fragment[fry * fr_width + frx].blue = src_image[y * width + x].blue;
+			if (fry < fr_height - 1) {
+				fry++;
+			}
+			else {
+				fry = 0;
+				frx++;
+			}
+		}
+	}
+}
+void Border(const string& fileName) {
+	int x_pos = 0, y_pos = 0, fr_height = 0, fr_width = 0;
+	bool negative = 0;
+	string source_path = "D:/University/GYMS/LABS/LAB2/SimpleBitmap/" + fileName + ".bmp",
+		path = "D:/University/GYMS/LABS/LAB2/SimpleBitmap/" + fileName + "_larger.bmp";
+	OpenImage(source_path);
+	//ShowImage(source_path);
+	cout << "Select a fragment to create a border from: \n(You have 4 parameters, x position, y position, height and width)\nImage size is: \n	- Height: " << height << "\n	- Width: " << width << endl;
+	cout << "X position: "; cin >> x_pos;
+	cout << "Y position: "; cin >> y_pos;
+	cout << "Fragment height: "; cin >> fr_height;
+	cout << "Fragment width: "; cin >> fr_width;
+
+	if (x_pos + fr_width > width) {
+		cout << "\nWARNING! X position and fragment width is out of image boundaries, try again please\n";
+		cout << "Do you want to try again?(Y/N)\n";
+		if (char(_getch()) == 'y' || char(_getch()) == 'Y') {
+			system("cls");
+			cout << fileName << " Create Border\n\n";
+			Border(fileName);
+		}
+		else {
+			return;
+		}
+	}
+
+	fragment = new Color[fr_width * fr_height];
+
+	if (y_pos + fr_height > height) {
+		cout << "\nWARNING! Y position and fragment height is out of image boundaries, try again please\n";
+		cout << "Do you want to try again?(Y/N)\n";
+		if (char(_getch()) == 'y' || char(_getch()) == 'Y') {
+			system("cls");
+			cout << fileName << " Create Border\n\n";
+			Border(fileName);
+		}
+		else {
+			return;
+		}
+	}
+	cout << "Do you want a negative border?(Y/N)\n";
+	if (char(_getch()) == 'y' || char(_getch()) == 'Y') {
+		negative = 1;
+	}
+	imageMagnification(fileName, (2 * fr_width + width), (2 * fr_height + height));
+	ClearMemory();
+	OpenImage(source_path);
+	GetFragment(x_pos, y_pos, fr_height, fr_width);
+	//ClearMemory();
+	OpenEnlargedImage(path);
+	FillWithBorder(x_pos, y_pos, fr_height, fr_width, negative);
+	SaveEnlargedImage(path);
+	//SaveImage(path);
+	ShowImage(path);
+	ClearMemory();
+}
+
+
 
 int main(int argc, char* argv[])
 {
+	setlocale(LC_ALL, "Russian");
+	string fileName = "Ducky";
 	//D:\Student\5sem\GIMS\bmp_editor\Sunset.bmp
 	srand((unsigned)time(NULL));
 
@@ -529,7 +811,13 @@ int main(int argc, char* argv[])
 		ShowImage(temp);
 		ClearMemory();
 		break;
+	case 5:
+		system("cls");
+		cout << fileName << " Create Border\n\n";
+		Border(fileName);
+		break;
 	default:
+		cout << "Invalid choice" << endl;
 		break;
 	}
 
